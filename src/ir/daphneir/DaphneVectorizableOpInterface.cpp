@@ -16,6 +16,8 @@
 
 #include <ir/daphneir/Daphne.h>
 
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
+
 #include <vector>
 
 namespace mlir::daphne
@@ -132,8 +134,37 @@ std::vector<std::pair<Value, Value>> daphne::MatMulOp::createOpsOutputSizes(OpBu
 {
     auto loc = getLoc();
     auto sizeTy = builder.getIndexType();
-    auto rows = builder.create<daphne::NumRowsOp>(loc, sizeTy, lhs());
-    auto cols = builder.create<daphne::NumColsOp>(loc, sizeTy, rhs());
+
+    Value rows;
+    bool ta;
+    if(auto co = transa().getDefiningOp<mlir::daphne::ConstantOp>())
+        ta = co.value().dyn_cast<mlir::BoolAttr>().getValue();
+    else if(auto co = transa().getDefiningOp<mlir::ConstantIntOp>())
+        ta = co.getValue();
+    else
+        throw std::runtime_error(
+                "VectorizableOpInterface::createOpsOutputSizes() for MatMulOp cannot know the number "
+                "of rows of the result, because it is not known if the lhs input is transposed"
+        );
+    rows = ta
+            ? builder.create<daphne::NumColsOp>(loc, sizeTy, lhs()).getResult()
+            : builder.create<daphne::NumRowsOp>(loc, sizeTy, lhs()).getResult();
+    
+    Value cols;
+    bool tb;
+    if(auto co = transb().getDefiningOp<mlir::daphne::ConstantOp>())
+        tb = co.value().dyn_cast<mlir::BoolAttr>().getValue();
+    else if(auto co = transb().getDefiningOp<mlir::ConstantIntOp>())
+        tb = co.getValue();
+    else
+        throw std::runtime_error(
+                "VectorizableOpInterface::createOpsOutputSizes() for MatMulOp cannot know the number "
+                "of columns of the result, because it is not known if the rhs input is transposed"
+        );
+    cols = tb
+            ? builder.create<daphne::NumRowsOp>(loc, sizeTy, rhs()).getResult()
+            : builder.create<daphne::NumColsOp>(loc, sizeTy, rhs()).getResult();
+
     return {{rows, cols}};
 }
 // ----------------------------------------------------------------------------

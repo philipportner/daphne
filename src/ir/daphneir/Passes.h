@@ -40,6 +40,7 @@ namespace mlir::daphne {
     };
 
     // alphabetically sorted list of passes
+    std::unique_ptr<Pass> createAdaptTypesToKernelsPass();
     std::unique_ptr<Pass> createDistributeComputationsPass();
     std::unique_ptr<Pass> createDistributePipelinesPass();
     std::unique_ptr<Pass> createInferencePass(InferenceConfig cfg = {false, true, true, true, true});
@@ -56,6 +57,10 @@ namespace mlir::daphne {
     std::unique_ptr<Pass> createWhileLoopInvariantCodeMotionPass();
 #ifdef USE_CUDA
     std::unique_ptr<Pass> createMarkCUDAOpsPass(const DaphneUserConfig& cfg);
+#endif
+
+#ifdef USE_FPGAOPENCL
+    std::unique_ptr<Pass> createMarkFPGAOPENCLOpsPass(const DaphneUserConfig& cfg);
 #endif
 
 #define GEN_PASS_REGISTRATION

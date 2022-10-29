@@ -26,13 +26,13 @@
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 
+#include <filesystem>
 #include <memory>
 #include <utility>
 
@@ -110,6 +110,10 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
         if(userConfig_.explain_property_inference)
             pm.addPass(mlir::daphne::createPrintIRPass("IR after property inference"));
 
+        pm.addNestedPass<mlir::FuncOp>(mlir::daphne::createAdaptTypesToKernelsPass());
+        if(userConfig_.explain_type_adaptation)
+            pm.addPass(mlir::daphne::createPrintIRPass("IR after type adaptation"));
+
 #if 0
         if (userConfig_.use_distributed) {
             pm.addPass(mlir::daphne::createDistributeComputationsPass());
@@ -122,9 +126,8 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
             //pm.addPass(mlir::daphne::createPrintIRPass("IR after distribution - WhileLICM"));
         }
 #endif
-
-        // For now, in order to use the distributed runtime we also require the vectorized engine to be enabled so
-        // as to create pipelines. Therefore *if* distributed runtime is enabled, we need to make a vectorization pass.
+        // For now, in order to use the distributed runtime we also require the vectorized engine to be enabled
+        // to create pipelines. Therefore, *if* distributed runtime is enabled, we need to make a vectorization pass.
         if(userConfig_.use_vectorized_exec || userConfig_.use_distributed) {
             // TODO: add inference here if we have rewrites that could apply to vectorized pipelines due to smaller sizes
             pm.addNestedPass<mlir::FuncOp>(mlir::daphne::createVectorizeComputationsPass());
@@ -143,12 +146,23 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
             pm.addNestedPass<mlir::FuncOp>(mlir::daphne::createMarkCUDAOpsPass(userConfig_));
 #endif
 
+#ifdef USE_FPGAOPENCL
+        if(userConfig_.use_fpgaopencl)
+            pm.addNestedPass<mlir::FuncOp>(mlir::daphne::createMarkFPGAOPENCLOpsPass(userConfig_));
+#endif
+
+        // Tidy up the IR before managing object reference counters with IncRefOp and DecRefOp.
+        // This is important, because otherwise, an SSA value whose references are managed could
+        // be cleared away by common subexpression elimination (CSE), while retaining its
+        // IncRefOps/DecRefOps, which could lead to double frees etc.
+        pm.addPass(mlir::createCanonicalizerPass());
+        pm.addPass(mlir::createCSEPass());
+
         if(userConfig_.use_obj_ref_mgnt)
             pm.addNestedPass<mlir::FuncOp>(mlir::daphne::createManageObjRefsPass());
         if(userConfig_.explain_obj_ref_mgnt)
             pm.addPass(mlir::daphne::createPrintIRPass("IR after managing object references"));
 
-        pm.addPass(mlir::createCSEPass());
         pm.addNestedPass<mlir::FuncOp>(mlir::daphne::createRewriteToCallKernelOpPass());
         if(userConfig_.explain_kernels)
             pm.addPass(mlir::daphne::createPrintIRPass("IR after kernel lowering"));
@@ -173,11 +187,12 @@ std::unique_ptr<mlir::ExecutionEngine> DaphneIrExecutor::createExecutionEngine(m
     if (module) {
         // An optimization pipeline to use within the execution engine.
         auto optPipeline = mlir::makeOptimizingTransformer(0, 0, nullptr);
-
-        llvm::SmallVector<llvm::StringRef, 1> sharedLibRefs;
-        // TODO Find these at run-time.
+        std::vector<llvm::StringRef> sharedLibRefs;
+        // This next line adds to our Linux platform lock-in
+        std::string daphne_executable_dir(std::filesystem::canonical("/proc/self/exe").parent_path());
         if(userConfig_.libdir.empty()) {
-            sharedLibRefs.push_back("build/src/runtime/local/kernels/libAllKernels.so");
+            sharedLibRefPaths.push_back(std::string(daphne_executable_dir + "/../lib/libAllKernels.so"));
+            sharedLibRefs.emplace_back(sharedLibRefPaths.back());
         }
         else {
             sharedLibRefs.insert(sharedLibRefs.end(), userConfig_.library_paths.begin(), userConfig_.library_paths.end());
@@ -185,8 +200,16 @@ std::unique_ptr<mlir::ExecutionEngine> DaphneIrExecutor::createExecutionEngine(m
 
 #ifdef USE_CUDA
         if(userConfig_.use_cuda) {
+            sharedLibRefPaths.push_back(std::string(daphne_executable_dir + "/../lib/libCUDAKernels.so"));
+            sharedLibRefs.emplace_back(sharedLibRefPaths.back());
+        }
+#endif
+ 
+#ifdef USE_FPGAOPENCL
+        if(userConfig_.use_fpgaopencl) {
             if(userConfig_.libdir.empty()) {
-                sharedLibRefs.push_back("build/src/runtime/local/kernels/libCUDAKernels.so");
+                std::string fpgaKernelsPath(std::string(daphne_executable_dir + "/../lib/libFPGAOPENCLKernels.so"));
+                sharedLibRefs.push_back(fpgaKernelsPath);
             }
         }
 #endif

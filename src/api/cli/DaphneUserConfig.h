@@ -22,13 +22,13 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include <vector>
+#include <map>
 
 /*
  * Container to pass around user configuration
  */
 struct DaphneUserConfig {
-    // Remember to update src/parser/config/UserConfig.json accordingly!
+    // Remember to update UserConfig.json accordingly!
 
     bool use_cuda = false;
     bool use_vectorized_exec = false;
@@ -41,6 +41,7 @@ struct DaphneUserConfig {
     bool hyperthreadingEnabled = false;
     bool debugMultiThreading = false;
     bool lower_scalar_mlir = false;
+    bool use_fpgaopencl = false;
 
     bool debug_llvm = false;
     bool explain_kernels = false;
@@ -49,6 +50,7 @@ struct DaphneUserConfig {
     bool explain_parsing_simplified = false;
     bool explain_property_inference = false;
     bool explain_sql = false;
+    bool explain_type_adaptation = false;
     bool explain_vectorized = false;
     bool explain_obj_ref_mgnt = false;
     SelfSchedulingScheme taskPartitioningScheme = STATIC;
@@ -66,6 +68,12 @@ struct DaphneUserConfig {
     // ToDo: This is an arbitrary default taken from sample code
 //    int cublas_workspace_size = 1024 * 1024 * 4;
 #endif
+#ifdef USE_FPGAOPENCL
+    std::vector<int> fpga_devices;
+#endif
+    
+    
     std::string libdir;
     std::vector<std::string> library_paths;
+    std::map<std::string, std::vector<std::string>> daphnedsl_import_paths;
 };

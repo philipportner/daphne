@@ -2,6 +2,9 @@
 build/
 build-*/
 build_*/
+/bin
+/lib
+/tmp
 
 # dependencies
 thirdparty/*
@@ -13,6 +16,7 @@ thirdparty/*
 
 # Python
 __pycache__/
+/venv
 
 # Jetbrains IDE
 .idea/
@@ -28,3 +32,8 @@ tags.*
 
 # GDB
 .gdb_history
+
+# release scripts output
+/artifacts
+
+tmpdaphne.daphne
