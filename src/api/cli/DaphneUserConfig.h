@@ -40,6 +40,7 @@ struct DaphneUserConfig {
     bool pinWorkers = false;
     bool hyperthreadingEnabled = false;
     bool debugMultiThreading = false;
+    bool lower_scalar_mlir = false;
 
     bool debug_llvm = false;
     bool explain_kernels = false;

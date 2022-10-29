@@ -14,6 +14,7 @@
  *  limitations under the License.
  */
 
+#include <iostream>
 #include <ir/daphneir/Daphne.h>
 #include <ir/daphneir/Passes.h>
 #include "DaphneIrExecutor.h"
@@ -73,7 +74,14 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
                 return false;
             }
         }
+
         mlir::PassManager pm(&context_);
+        if (userConfig_.lower_scalar_mlir) {
+            pm.addPass(mlir::daphne::createPrintIRPass("IR before scalar lowering"));
+            pm.addPass(mlir::daphne::createLowerScalarOpsPass(userConfig_));
+            pm.addPass(mlir::daphne::createPrintIRPass("IR after scalar lowering"));
+        }
+
         pm.addPass(mlir::createCanonicalizerPass());
         if(userConfig_.explain_parsing_simplified)
             pm.addPass(mlir::daphne::createPrintIRPass("IR after parsing and some simplifications:"));
@@ -114,7 +122,7 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
             //pm.addPass(mlir::daphne::createPrintIRPass("IR after distribution - WhileLICM"));
         }
 #endif
-        
+
         // For now, in order to use the distributed runtime we also require the vectorized engine to be enabled so
         // as to create pipelines. Therefore *if* distributed runtime is enabled, we need to make a vectorization pass.
         if(userConfig_.use_vectorized_exec || userConfig_.use_distributed) {
@@ -124,7 +132,7 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
         }
         if(userConfig_.explain_vectorized)
             pm.addPass(mlir::daphne::createPrintIRPass("IR after vectorization"));
-        
+
         if (userConfig_.use_distributed)
             pm.addPass(mlir::daphne::createDistributePipelinesPass());
 

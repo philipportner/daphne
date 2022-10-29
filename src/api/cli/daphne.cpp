@@ -127,6 +127,10 @@ main(int argc, char** argv)
                 "Define the minimum grain size of a task (default is 1)"
             )
     );
+    opt<bool> useScalarToMLIRLowering(
+            "mlir", cat(schedulingOptions),
+            desc("Lower DaphneIR operators on scalars to MLIR instead of precompiled kernels")
+    );
     opt<bool> useVectorizedPipelines(
             "vec", cat(schedulingOptions),
             desc("Enable vectorized execution engine")
@@ -268,6 +272,7 @@ main(int argc, char** argv)
     }
     
 //    user_config.debug_llvm = true;
+    user_config.lower_scalar_mlir = useScalarToMLIRLowering;
     user_config.use_vectorized_exec = useVectorizedPipelines;
     user_config.use_distributed = useDistributedRuntime; 
     user_config.use_obj_ref_mgnt = !noObjRefMgnt;
