@@ -18,4 +18,13 @@ __pycache__/
 .idea/
 cmake-*/
 
-tmpdaphne.daphne
+# Clangd
+.cache/
+compile_commands.json
+
+# Ctags
+tags
+tags.*
+
+# GDB
+.gdb_history
