@@ -34,34 +34,28 @@ using namespace mlir;
 // be combined into a single variadic result.
 const std::string ATTR_HASVARIADICRESULTS = "hasVariadicResults";
 
-#if 0
-// At the moment, all of these operations are lowered to kernel calls.
 template <typename BinaryOp, typename ReplIOp, typename ReplFOp>
-struct BinaryOpLowering : public OpConversionPattern<BinaryOp>
-{
-    using OpConversionPattern<BinaryOp>::OpConversionPattern;
+struct BinaryOpLowering : public mlir::OpConversionPattern<BinaryOp> {
+    using mlir::OpConversionPattern<BinaryOp>::OpConversionPattern;
 
-    LogicalResult
-    matchAndRewrite(BinaryOp op, ArrayRef<Value> operands,
-                    ConversionPatternRewriter &rewriter) const override
-    {
-        Type type = op.getType();
-        if (type.isa<IntegerType>()) {
+    mlir::LogicalResult matchAndRewrite(
+        BinaryOp op, mlir::ArrayRef<mlir::Value> operands,
+        mlir::ConversionPatternRewriter &rewriter) const override {
+        mlir::Type type = op.getType();
+
+        if (type.isa<mlir::IntegerType>()) {
             rewriter.replaceOpWithNewOp<ReplIOp>(op.getOperation(), operands);
-        }
-        else if (type.isa<FloatType>()) {
+        } else if (type.isa<mlir::FloatType>()) {
             rewriter.replaceOpWithNewOp<ReplFOp>(op.getOperation(), operands);
+        } else {
+            return mlir::failure();
         }
-        else {
-            return failure();
-        }
-        return success();
+        return mlir::success();
     }
 };
-using AddOpLowering = BinaryOpLowering<daphne::AddOp, AddIOp, AddFOp>;
-using SubOpLowering = BinaryOpLowering<daphne::SubOp, SubIOp, SubFOp>;
-using MulOpLowering = BinaryOpLowering<daphne::MulOp, MulIOp, MulFOp>;
-#endif
+using AddOpLowering = BinaryOpLowering<mlir::daphne::EwAddOp, mlir::AddIOp, mlir::AddFOp>;
+using SubOpLowering = BinaryOpLowering<mlir::daphne::EwSubOp, mlir::SubIOp, mlir::SubFOp>;
+using MulOpLowering = BinaryOpLowering<mlir::daphne::EwMulOp, mlir::MulIOp, mlir::MulFOp>;
 
 struct ReturnOpLowering : public OpRewritePattern<daphne::ReturnOp>
 {
@@ -936,6 +930,11 @@ void DaphneLowerToLLVMPass::runOnOperation()
             CreateVariadicPackOpLowering>(typeConverter, &getContext());
 
     patterns.insert<VectorizedPipelineOpLowering>(typeConverter, &getContext(), cfg);
+
+    if (cfg.lower_scalar_mlir) {
+        patterns.insert<AddOpLowering, SubOpLowering, MulOpLowering>(
+            &getContext());
+    }
 
     patterns.insert<
             ConstantOpLowering,

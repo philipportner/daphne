@@ -76,11 +76,6 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
         }
 
         mlir::PassManager pm(&context_);
-        if (userConfig_.lower_scalar_mlir) {
-            pm.addPass(mlir::daphne::createPrintIRPass("IR before scalar lowering"));
-            pm.addPass(mlir::daphne::createLowerScalarOpsPass(userConfig_));
-            pm.addPass(mlir::daphne::createPrintIRPass("IR after scalar lowering"));
-        }
 
         pm.addPass(mlir::createCanonicalizerPass());
         if(userConfig_.explain_parsing_simplified)
@@ -163,11 +158,22 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
         if(userConfig_.explain_obj_ref_mgnt)
             pm.addPass(mlir::daphne::createPrintIRPass("IR after managing object references"));
 
-        pm.addNestedPass<mlir::FuncOp>(mlir::daphne::createRewriteToCallKernelOpPass());
+        pm.addNestedPass<mlir::FuncOp>(mlir::daphne::createRewriteToCallKernelOpPass(userConfig_));
         if(userConfig_.explain_kernels)
             pm.addPass(mlir::daphne::createPrintIRPass("IR after kernel lowering"));
 
         pm.addPass(mlir::createLowerToCFGPass());
+
+        // if (userConfig_.lower_scalar_mlir) {
+        //     // pm.addPass(mlir::daphne::createPrintIRPass("IR before type conversion"));
+        //     // pm.addPass(mlir::daphne::createConvertToSignlessPass());
+        //     // pm.addPass(mlir::daphne::createPrintIRPass("IR after type conversion"));
+        //
+        //     pm.addPass(mlir::daphne::createPrintIRPass("IR before scalar lowering"));
+        //     pm.addPass(mlir::daphne::createLowerScalarOpsPass(userConfig_));
+        //     pm.addPass(mlir::daphne::createPrintIRPass("IR after scalar lowering"));
+        // }
+
         pm.addPass(mlir::daphne::createLowerToLLVMPass(userConfig_));
         if(userConfig_.explain_llvm)
             pm.addPass(mlir::daphne::createPrintIRPass("IR after llvm lowering"));

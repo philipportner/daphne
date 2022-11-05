@@ -479,7 +479,8 @@ namespace
     struct RewriteToCallKernelOpPass
     : public PassWrapper<RewriteToCallKernelOpPass, FunctionPass>
     {
-        RewriteToCallKernelOpPass() = default;
+        explicit RewriteToCallKernelOpPass(const DaphneUserConfig& cfg) : cfg(cfg){};
+        const DaphneUserConfig& cfg;
         void runOnFunction() final;
     };
 }
@@ -496,6 +497,18 @@ void RewriteToCallKernelOpPass::runOnFunction()
     target.addLegalDialect<StandardOpsDialect, LLVM::LLVMDialect, scf::SCFDialect>();
     target.addLegalOp<ModuleOp, FuncOp>();
     target.addIllegalDialect<daphne::DaphneDialect>();
+
+    if (cfg.lower_scalar_mlir) {
+        // UnaryOp on scalar
+
+        // BinaryOp on scalar
+        target.addDynamicallyLegalOp<daphne::EwAddOp, daphne::EwSubOp,
+                                     daphne::EwMulOp>([](Operation *op) {
+            return !op->getOperand(0).getType().isa<daphne::MatrixType>() &&
+                   !op->getOperand(1).getType().isa<daphne::MatrixType>();
+        });
+    }
+
     target.addLegalOp<
             daphne::ConstantOp,
             daphne::ReturnOp,
@@ -526,7 +539,7 @@ void RewriteToCallKernelOpPass::runOnFunction()
 
 }
 
-std::unique_ptr<Pass> daphne::createRewriteToCallKernelOpPass()
+std::unique_ptr<Pass> daphne::createRewriteToCallKernelOpPass(const DaphneUserConfig& cfg)
 {
-    return std::make_unique<RewriteToCallKernelOpPass>();
+    return std::make_unique<RewriteToCallKernelOpPass>(cfg);
 }

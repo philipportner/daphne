@@ -135,7 +135,7 @@ main(int argc, char** argv)
             )
     );
     opt<bool> useScalarToMLIRLowering(
-            "mlir", cat(schedulingOptions),
+            "scalar-lowering", cat(schedulingOptions),
             desc("Lower DaphneIR operators on scalars to MLIR instead of precompiled kernels")
     );
     opt<bool> useVectorizedPipelines(
