@@ -56,6 +56,7 @@ struct BinaryOpLowering : public mlir::OpConversionPattern<BinaryOp> {
 using AddOpLowering = BinaryOpLowering<mlir::daphne::EwAddOp, mlir::AddIOp, mlir::AddFOp>;
 using SubOpLowering = BinaryOpLowering<mlir::daphne::EwSubOp, mlir::SubIOp, mlir::SubFOp>;
 using MulOpLowering = BinaryOpLowering<mlir::daphne::EwMulOp, mlir::MulIOp, mlir::MulFOp>;
+using DivOpLowering = BinaryOpLowering<mlir::daphne::EwDivOp, mlir::DivFOp, mlir::DivFOp>;
 
 struct ReturnOpLowering : public OpRewritePattern<daphne::ReturnOp>
 {
@@ -932,7 +933,7 @@ void DaphneLowerToLLVMPass::runOnOperation()
     patterns.insert<VectorizedPipelineOpLowering>(typeConverter, &getContext(), cfg);
 
     if (cfg.lower_scalar_mlir) {
-        patterns.insert<AddOpLowering, SubOpLowering, MulOpLowering>(
+        patterns.insert<AddOpLowering, SubOpLowering, MulOpLowering, DivOpLowering>(
             &getContext());
     }
 
