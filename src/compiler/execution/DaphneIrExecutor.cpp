@@ -21,6 +21,7 @@
 
 #include "llvm/Support/TargetSelect.h"
 #include "mlir/Conversion/SCFToStandard/SCFToStandard.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
@@ -44,6 +45,7 @@ DaphneIrExecutor::DaphneIrExecutor(bool selectMatrixRepresentations,
     context_.getOrLoadDialect<mlir::StandardOpsDialect>();
     context_.getOrLoadDialect<mlir::scf::SCFDialect>();
     context_.getOrLoadDialect<mlir::LLVM::LLVMDialect>();
+    context_.getOrLoadDialect<mlir::math::MathDialect>();
 
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();

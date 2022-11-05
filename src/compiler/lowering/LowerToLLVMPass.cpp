@@ -20,6 +20,7 @@
 
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 
@@ -57,6 +58,8 @@ using AddOpLowering = BinaryOpLowering<mlir::daphne::EwAddOp, mlir::AddIOp, mlir
 using SubOpLowering = BinaryOpLowering<mlir::daphne::EwSubOp, mlir::SubIOp, mlir::SubFOp>;
 using MulOpLowering = BinaryOpLowering<mlir::daphne::EwMulOp, mlir::MulIOp, mlir::MulFOp>;
 using DivOpLowering = BinaryOpLowering<mlir::daphne::EwDivOp, mlir::DivFOp, mlir::DivFOp>;
+// FIXME: IPowIOp has been added to MathOps.td with 08b4cf3
+using PowOpLowering = BinaryOpLowering<mlir::daphne::EwPowOp, math::PowFOp, math::PowFOp>;
 
 struct ReturnOpLowering : public OpRewritePattern<daphne::ReturnOp>
 {
@@ -916,6 +919,11 @@ void DaphneLowerToLLVMPass::runOnOperation()
       return LLVM::LLVMPointerType::get(
           IntegerType::get(t.getContext(), 1));
     });
+    // typeConverter.addConversion([&](IntegerType t)
+    // {
+    // return LLVM::LLVMPointerType::get(
+    //         IntegerType::get(t.getContext(), t.getWidth(), mlir::IntegerType::Signless));
+    // });
 
     LLVMConversionTarget target(getContext());
 
@@ -933,8 +941,8 @@ void DaphneLowerToLLVMPass::runOnOperation()
     patterns.insert<VectorizedPipelineOpLowering>(typeConverter, &getContext(), cfg);
 
     if (cfg.lower_scalar_mlir) {
-        patterns.insert<AddOpLowering, SubOpLowering, MulOpLowering, DivOpLowering>(
-            &getContext());
+        patterns.insert<AddOpLowering, SubOpLowering, MulOpLowering,
+                        DivOpLowering, PowOpLowering>(&getContext());
     }
 
     patterns.insert<

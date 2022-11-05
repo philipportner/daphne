@@ -503,7 +503,8 @@ void RewriteToCallKernelOpPass::runOnFunction()
 
         // BinaryOp on scalar
         target.addDynamicallyLegalOp<daphne::EwAddOp, daphne::EwSubOp,
-                                     daphne::EwMulOp, daphne::EwDivOp>([](Operation *op) {
+                                     daphne::EwMulOp, daphne::EwDivOp,
+                                     daphne::EwPowOp>([](Operation *op) {
             return !op->getOperand(0).getType().isa<daphne::MatrixType>() &&
                    !op->getOperand(1).getType().isa<daphne::MatrixType>();
         });
