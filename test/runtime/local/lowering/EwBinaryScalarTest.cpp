@@ -25,147 +25,54 @@
 
 const std::string dirPath = "test/runtime/local/lowering/";
 
-TEST_CASE("ewBinaryAddScalar", TAG_KERNELS) {
+void test_binary_lowering(const std::string op,
+                            const std::string kernel_call,
+                          const std::string lowering,
+                          const std::string result) {
     std::stringstream out;
     std::stringstream err;
 
     // `daphne --explain llvm $scriptFilePath`
-    int status = runDaphne(out, err, "--explain", "llvm", (dirPath + "add.daphne").c_str());
+    int status = runDaphne(out, err, "--explain", "llvm", (dirPath + op + ".daphne").c_str());
     CHECK(status == StatusCode::SUCCESS);
 
     // --lowering-scalar not passed
     // make sure EwAddOp is correctly lowered to kernel call
     // PrintIRPass outputs to stderr
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.call @_ewAdd__"));
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.add"));
-    CHECK(out.str() == "3\n");
+    REQUIRE_THAT(err.str(), Catch::Contains(kernel_call));
+    REQUIRE_THAT(err.str(), !Catch::Contains(lowering));
+    CHECK(out.str() == result);
 
     out.str(std::string());
     err.str(std::string());
 
     // `daphne --explain llvm --scalar-lowering $scriptFilePath`
-    status = runDaphne(out, err, "--explain", "llvm", "--scalar-lowering", (dirPath + "add.daphne").c_str());
+    status = runDaphne(out, err, "--explain", "llvm", "--scalar-lowering", (dirPath + op + ".daphne").c_str());
     CHECK(status == StatusCode::SUCCESS);
 
     // --lowering-scalar
     // make sure EwAddOp is no longer lowered to kernel call
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.call @_ewAdd__"));
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.add"));
-    CHECK(out.str() == "3\n");
+    REQUIRE_THAT(err.str(), !Catch::Contains(kernel_call));
+    REQUIRE_THAT(err.str(), Catch::Contains(lowering));
+    CHECK(out.str() == result);
+}
+
+TEST_CASE("ewBinaryAddScalar", TAG_KERNELS) {
+    test_binary_lowering("add", "llvm.call @_ewAdd__", "llvm.add", "3\n");
 }
 
 TEST_CASE("ewBinarySubScalar", TAG_KERNELS) {
-    std::stringstream out;
-    std::stringstream err;
-
-    // `daphne --explain llvm $scriptFilePath`
-    int status = runDaphne(out, err, "--explain", "llvm", (dirPath + "sub.daphne").c_str());
-    CHECK(status == StatusCode::SUCCESS);
-
-    // --lowering-scalar not passed
-    // make sure EwSubOp is correctly lowered to kernel call
-    // PrintIRPass outputs to stderr
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.call @_ewSub__"));
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.sub"));
-    CHECK(out.str() == "-1\n");
-
-    out.str(std::string());
-    err.str(std::string());
-
-    // `daphne --explain llvm --scalar-lowering $scriptFilePath`
-    status = runDaphne(out, err, "--explain", "llvm", "--scalar-lowering", (dirPath + "sub.daphne").c_str());
-    CHECK(status == StatusCode::SUCCESS);
-
-    // --lowering-scalar
-    // make sure EwSubOp is no longer lowered to kernel call
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.call @_ewSub__"));
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.sub"));
-    CHECK(out.str() == "-1\n");
+    test_binary_lowering("sub", "llvm.call @_ewSub__", "llvm.sub", "-1\n");
 }
 
 TEST_CASE("ewBinaryMulScalar", TAG_KERNELS) {
-    std::stringstream out;
-    std::stringstream err;
-
-    // `daphne --explain llvm $scriptFilePath`
-    int status = runDaphne(out, err, "--explain", "llvm", (dirPath + "mul.daphne").c_str());
-    CHECK(status == StatusCode::SUCCESS);
-
-    // --lowering-scalar not passed
-    // make sure EwMulOp is correctly lowered to kernel call
-    // PrintIRPass outputs to stderr
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.call @_ewMul__"));
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.mul"));
-    CHECK(out.str() == "2\n");
-
-    out.str(std::string());
-    err.str(std::string());
-
-    // `daphne --explain llvm --scalar-lowering $scriptFilePath`
-    status = runDaphne(out, err, "--explain", "llvm", "--scalar-lowering", (dirPath + "mul.daphne").c_str());
-    CHECK(status == StatusCode::SUCCESS);
-
-    // --lowering-scalar
-    // make sure EwMulOp is no longer lowered to kernel call
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.call @_ewMul__"));
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.mul"));
-    CHECK(out.str() == "2\n");
+    test_binary_lowering("mul", "llvm.call @_ewMul__", "llvm.mul", "2\n");
 }
 
 TEST_CASE("ewBinaryDivScalar", TAG_KERNELS) {
-    std::stringstream out;
-    std::stringstream err;
-
-    // `daphne --explain llvm $scriptFilePath`
-    int status = runDaphne(out, err, "--explain", "llvm", (dirPath + "div.daphne").c_str());
-    CHECK(status == StatusCode::SUCCESS);
-
-    // --lowering-scalar not passed
-    // make sure EwDivOp is correctly lowered to kernel call
-    // PrintIRPass outputs to stderr
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.call @_ewDiv__"));
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.fdiv"));
-    CHECK(out.str() == "1.5\n");
-
-    out.str(std::string());
-    err.str(std::string());
-
-    // `daphne --explain llvm --scalar-lowering $scriptFilePath`
-    status = runDaphne(out, err, "--explain", "llvm", "--scalar-lowering", (dirPath + "div.daphne").c_str());
-    CHECK(status == StatusCode::SUCCESS);
-
-    // --lowering-scalar
-    // make sure EwDivOp is no longer lowered to kernel call
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.call @_ewDiv__"));
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.fdiv"));
-    CHECK(out.str() == "1.5\n");
+    test_binary_lowering("div", "llvm.call @_ewDiv__", "llvm.fdiv", "1.5\n");
 }
 
 TEST_CASE("ewBinaryPowScalar", TAG_KERNELS) {
-    std::stringstream out;
-    std::stringstream err;
-
-    // `daphne --explain llvm $scriptFilePath`
-    int status = runDaphne(out, err, "--explain", "llvm", (dirPath + "pow.daphne").c_str());
-    CHECK(status == StatusCode::SUCCESS);
-
-    // --lowering-scalar not passed
-    // make sure EwPowOp is correctly lowered to kernel call
-    // PrintIRPass outputs to stderr
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.call @_ewPow__"));
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.intr.pow"));
-    CHECK(out.str() == "9\n");
-
-    out.str(std::string());
-    err.str(std::string());
-
-    // `daphne --explain llvm --scalar-lowering $scriptFilePath`
-    status = runDaphne(out, err, "--explain", "llvm", "--scalar-lowering", (dirPath + "pow.daphne").c_str());
-    CHECK(status == StatusCode::SUCCESS);
-
-    // --lowering-scalar
-    // make sure EwPowOp is no longer lowered to kernel call
-    REQUIRE_THAT(err.str(), !Catch::Contains("llvm.call @_ewPow__"));
-    REQUIRE_THAT(err.str(), Catch::Contains("llvm.intr.pow"));
-    CHECK(out.str() == "9\n");
+    test_binary_lowering("pow", "llvm.call @_ewPow__", "llvm.intr.pow", "9\n");
 }
