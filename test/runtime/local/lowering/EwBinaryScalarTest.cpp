@@ -76,3 +76,7 @@ TEST_CASE("ewBinaryDivScalar", TAG_KERNELS) {
 TEST_CASE("ewBinaryPowScalar", TAG_KERNELS) {
     test_binary_lowering("pow", "llvm.call @_ewPow__", "llvm.intr.pow", "9\n");
 }
+
+TEST_CASE("ewBinaryAbsScalar", TAG_KERNELS) {
+    test_binary_lowering("abs", "llvm.call @_ewAbs__", "llvm.intr.fabs", "4\n");
+}

@@ -23,6 +23,7 @@
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/PatternMatch.h"
 
 #include <memory>
 #include <utility>
@@ -35,8 +36,8 @@ using namespace mlir;
 // be combined into a single variadic result.
 const std::string ATTR_HASVARIADICRESULTS = "hasVariadicResults";
 
-template <typename BinaryOp, typename ReplIOp, typename ReplFOp>
-struct BinaryOpLowering : public mlir::OpConversionPattern<BinaryOp> {
+template <typename BinaryOp, typename IOp, typename FOp>
+struct ScalarOpLowering : public mlir::OpConversionPattern<BinaryOp> {
     using mlir::OpConversionPattern<BinaryOp>::OpConversionPattern;
 
     mlir::LogicalResult matchAndRewrite(
@@ -45,21 +46,24 @@ struct BinaryOpLowering : public mlir::OpConversionPattern<BinaryOp> {
         mlir::Type type = op.getType();
 
         if (type.isa<mlir::IntegerType>()) {
-            rewriter.replaceOpWithNewOp<ReplIOp>(op.getOperation(), operands);
+            rewriter.replaceOpWithNewOp<IOp>(op.getOperation(), operands);
         } else if (type.isa<mlir::FloatType>()) {
-            rewriter.replaceOpWithNewOp<ReplFOp>(op.getOperation(), operands);
+            rewriter.replaceOpWithNewOp<FOp>(op.getOperation(), operands);
         } else {
             return mlir::failure();
         }
         return mlir::success();
     }
 };
-using AddOpLowering = BinaryOpLowering<mlir::daphne::EwAddOp, mlir::AddIOp, mlir::AddFOp>;
-using SubOpLowering = BinaryOpLowering<mlir::daphne::EwSubOp, mlir::SubIOp, mlir::SubFOp>;
-using MulOpLowering = BinaryOpLowering<mlir::daphne::EwMulOp, mlir::MulIOp, mlir::MulFOp>;
-using DivOpLowering = BinaryOpLowering<mlir::daphne::EwDivOp, mlir::DivFOp, mlir::DivFOp>;
-// FIXME: IPowIOp has been added to MathOps.td with 08b4cf3
-using PowOpLowering = BinaryOpLowering<mlir::daphne::EwPowOp, math::PowFOp, math::PowFOp>;
+using AddOpLowering = ScalarOpLowering<mlir::daphne::EwAddOp, mlir::AddIOp, mlir::AddFOp>;
+using SubOpLowering = ScalarOpLowering<mlir::daphne::EwSubOp, mlir::SubIOp, mlir::SubFOp>;
+using MulOpLowering = ScalarOpLowering<mlir::daphne::EwMulOp, mlir::MulIOp, mlir::MulFOp>;
+using DivOpLowering = ScalarOpLowering<mlir::daphne::EwDivOp, mlir::DivFOp, mlir::DivFOp>;
+// FIXME: IPowIOp has been added to MathOps.td with 08b4cf3 Aug 10
+using PowOpLowering = ScalarOpLowering<mlir::daphne::EwPowOp, math::PowFOp, math::PowFOp>;
+// FIXME: AbsIOp  has been added to MathOps.td with 7d9fc95 Aug 08
+using AbsOpLowering = ScalarOpLowering<mlir::daphne::EwAbsOp, mlir::AbsFOp, mlir::AbsFOp>;
+
 
 struct ReturnOpLowering : public OpRewritePattern<daphne::ReturnOp>
 {
@@ -182,11 +186,11 @@ class CallKernelOpLowering : public OpConversionPattern<daphne::CallKernelOp>
                                                      Type indexType)
     {
         llvm::SmallVector<Type, 5> args;
-        
+
         // --------------------------------------------------------------------
         // Results
         // --------------------------------------------------------------------
-        
+
         const size_t numRes = resultTypes.size();
         if(hasVarRes) { // combine all results into one variadic result
             // TODO Support individual result types, at least if they are all
@@ -216,18 +220,18 @@ class CallKernelOpLowering : public OpConversionPattern<daphne::CallKernelOp>
                 else if (failed(typeConverter->convertType(type, args)))
                     emitError(loc) << "Couldn't convert result type `" << type << "`\n";
             }
-        
+
         // --------------------------------------------------------------------
         // Operands
         // --------------------------------------------------------------------
-        
+
         if(hasVarRes)
             // Create a parameter for passing the number of results in the
             // single variadic result.
             args.push_back(typeConverter->isLegal(indexType)
                     ? indexType
                     : typeConverter->convertType(indexType));
-        
+
         for (auto type : operandTypes) {
             if (typeConverter->isLegal(type)) {
                 args.push_back(type);
@@ -239,7 +243,7 @@ class CallKernelOpLowering : public OpConversionPattern<daphne::CallKernelOp>
         // --------------------------------------------------------------------
         // Create final LLVM types
         // --------------------------------------------------------------------
-        
+
         std::vector<Type> argsLLVM;
         for (size_t i = 0; i < args.size(); i++) {
             Type type = args[i];
@@ -250,10 +254,10 @@ class CallKernelOpLowering : public OpConversionPattern<daphne::CallKernelOp>
             if (!hasVarRes && i < numRes) {
                 type = LLVM::LLVMPointerType::get(type);
             }
-            
+
             argsLLVM.push_back(type);
         }
-        
+
         return argsLLVM;
     }
 
@@ -294,7 +298,7 @@ public:
         const bool hasVarRes = op->hasAttr(ATTR_HASVARIADICRESULTS)
                 ? op->getAttr(ATTR_HASVARIADICRESULTS).dyn_cast<BoolAttr>().getValue()
                 : false;
-        
+
         auto module = op->getParentOfType<ModuleOp>();
         auto loc = op.getLoc();
 
@@ -329,7 +333,7 @@ private:
     {
         // transformed results
         std::vector<Value> results;
-        
+
         if(hasVarRes) { // combine all results into one variadic result
             for(size_t i = 0; i < numResults; i++) {
                 std::vector<Value> indices = {rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i))};
@@ -353,7 +357,7 @@ private:
 
                 results.push_back(resultVal);
             }
-        
+
         return results;
     }
 
@@ -364,11 +368,11 @@ private:
     {
 
         std::vector<Value> kernelOperands;
-        
+
         // --------------------------------------------------------------------
         // Results
         // --------------------------------------------------------------------
-        
+
         if(hasVarRes) { // combine all results into one variadic result
             // Allocate an array of numRes elements.
             auto allocaOp = rewriter.create<LLVM::AllocaOp>(
@@ -400,7 +404,7 @@ private:
         else { // typical case
             // Constant of 1 for AllocaOp of output.
             Value cst1 = rewriter.create<ConstantOp>(loc, rewriter.getI64IntegerAttr(1));
-            
+
             for (size_t i = 0; i < numRes; i++) {
                 // Allocate space for a single element.
                 auto allocaOp = rewriter.create<LLVM::AllocaOp>(loc, inputOutputTypes[i], cst1);
@@ -421,18 +425,18 @@ private:
                 }
             }
         }
-        
+
         // --------------------------------------------------------------------
         // Operands
         // --------------------------------------------------------------------
-        
+
         if(hasVarRes)
             // Insert the number of results in the variadic result as a constant.
             kernelOperands.push_back(rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(numRes)));
-        
+
         for(auto op : operands)
             kernelOperands.push_back(op);
-        
+
         return kernelOperands;
     }
 };
@@ -686,7 +690,7 @@ public:
         // Get some information on the results.
         Operation::result_type_range resultTypes = op->getResultTypes();
         const size_t numRes = op->getNumResults();
-        
+
         if(numRes > 0) {
             // TODO Support individual types for all outputs (see #397).
             // Check if all results have the same type.
@@ -698,7 +702,7 @@ public:
                             "result types, but at the moment we require all "
                             "results to have the same type"
                     );
-            
+
             // Append the name of the common type of all results to the kernel name.
             callee << "__" << CompilerUtils::mlirTypeToCppTypeName(resultTypes[0]) << "_variadic__size_t";
         }
@@ -941,8 +945,12 @@ void DaphneLowerToLLVMPass::runOnOperation()
     patterns.insert<VectorizedPipelineOpLowering>(typeConverter, &getContext(), cfg);
 
     if (cfg.lower_scalar_mlir) {
-        patterns.insert<AddOpLowering, SubOpLowering, MulOpLowering,
-                        DivOpLowering, PowOpLowering>(&getContext());
+        patterns.insert<
+            /* Unary Ops*/
+            AbsOpLowering,
+            /* Binary Ops */
+            AddOpLowering, SubOpLowering, MulOpLowering, DivOpLowering,
+            PowOpLowering>(&getContext());
     }
 
     patterns.insert<

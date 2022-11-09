@@ -500,6 +500,9 @@ void RewriteToCallKernelOpPass::runOnFunction()
 
     if (cfg.lower_scalar_mlir) {
         // UnaryOp on scalar
+        target.addDynamicallyLegalOp<daphne::EwAbsOp>([](Operation *op) {
+            return !op->getOperand(0).getType().isa<daphne::MatrixType>();
+        });
 
         // BinaryOp on scalar
         target.addDynamicallyLegalOp<daphne::EwAddOp, daphne::EwSubOp,
