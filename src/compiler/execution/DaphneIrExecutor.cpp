@@ -21,6 +21,7 @@
 
 #include "llvm/Support/TargetSelect.h"
 #include "mlir/Conversion/SCFToStandard/SCFToStandard.h"
+#include "mlir/Dialect/Linalg/IR/LinalgTypes.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
@@ -46,6 +47,7 @@ DaphneIrExecutor::DaphneIrExecutor(bool selectMatrixRepresentations,
     context_.getOrLoadDialect<mlir::scf::SCFDialect>();
     context_.getOrLoadDialect<mlir::LLVM::LLVMDialect>();
     context_.getOrLoadDialect<mlir::math::MathDialect>();
+    context_.getOrLoadDialect<mlir::linalg::LinalgDialect>();
 
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
@@ -167,15 +169,14 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
         pm.addPass(mlir::createLowerToCFGPass());
 
         // if (userConfig_.lower_scalar_mlir) {
-        //     // pm.addPass(mlir::daphne::createPrintIRPass("IR before type conversion"));
-        //     // pm.addPass(mlir::daphne::createConvertToSignlessPass());
-        //     // pm.addPass(mlir::daphne::createPrintIRPass("IR after type conversion"));
-        //
         //     pm.addPass(mlir::daphne::createPrintIRPass("IR before scalar lowering"));
         //     pm.addPass(mlir::daphne::createLowerScalarOpsPass(userConfig_));
         //     pm.addPass(mlir::daphne::createPrintIRPass("IR after scalar lowering"));
         // }
 
+
+        if(userConfig_.explain_llvm)
+            pm.addPass(mlir::daphne::createPrintIRPass("IR before llvm lowering"));
         pm.addPass(mlir::daphne::createLowerToLLVMPass(userConfig_));
         if(userConfig_.explain_llvm)
             pm.addPass(mlir::daphne::createPrintIRPass("IR after llvm lowering"));

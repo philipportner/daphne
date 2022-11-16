@@ -499,18 +499,19 @@ void RewriteToCallKernelOpPass::runOnFunction()
     target.addIllegalDialect<daphne::DaphneDialect>();
 
     if (cfg.lower_scalar_mlir) {
-        // UnaryOp on scalar
-        target.addDynamicallyLegalOp<daphne::EwAbsOp>([](Operation *op) {
-            return !op->getOperand(0).getType().isa<daphne::MatrixType>();
+        // UnaryOp
+        target.addDynamicallyLegalOp<daphne::EwAbsOp, daphne::EwLnOp>([](Operation *op) {
+            return op->getOperand(0).getType().isIntOrFloat();
         });
 
-        // BinaryOp on scalar
-        target.addDynamicallyLegalOp<daphne::EwAddOp, daphne::EwSubOp,
-                                     daphne::EwMulOp, daphne::EwDivOp,
-                                     daphne::EwPowOp>([](Operation *op) {
-            return !op->getOperand(0).getType().isa<daphne::MatrixType>() &&
-                   !op->getOperand(1).getType().isa<daphne::MatrixType>();
-        });
+        // BinaryOp
+        target.addDynamicallyLegalOp<
+            daphne::EwAddOp, daphne::EwSubOp, daphne::EwMulOp, daphne::EwDivOp,
+            daphne::EwPowOp/*, daphne::EwLogOp*/>(
+            [](Operation *op) {
+                return op->getOperand(0).getType().isIntOrFloat() &&
+                       op->getOperand(1).getType().isIntOrFloat();
+            });
     }
 
     target.addLegalOp<

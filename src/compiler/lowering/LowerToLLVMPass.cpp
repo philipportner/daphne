@@ -63,7 +63,32 @@ using DivOpLowering = ScalarOpLowering<mlir::daphne::EwDivOp, mlir::DivFOp, mlir
 using PowOpLowering = ScalarOpLowering<mlir::daphne::EwPowOp, math::PowFOp, math::PowFOp>;
 // FIXME: AbsIOp  has been added to MathOps.td with 7d9fc95 Aug 08
 using AbsOpLowering = ScalarOpLowering<mlir::daphne::EwAbsOp, mlir::AbsFOp, mlir::AbsFOp>;
+using LnOpLowering = ScalarOpLowering<mlir::daphne::EwLnOp, math::LogOp, math::LogOp>;
 
+struct LogOpLowering : public OpRewritePattern<daphne::EwLogOp>
+{
+    using OpRewritePattern<daphne::EwLogOp>::OpRewritePattern;
+
+    // log(4,3) -> log_3(4) ---> ln(4) / ln(3)
+
+    LogicalResult matchAndRewrite(daphne::EwLogOp op,
+                                  PatternRewriter &rewriter) const final
+    {
+        auto loc = op->getLoc();
+
+        // auto dividend = rewriter.create<math::LogOp>(loc, op->getOperand(0));
+        // auto divisor = rewriter.create<math::LogOp>(loc, op->getOperand(1));
+
+        // TODO MSC
+        // Possible with mlir::arith
+        // https://cs.github.com/llvm/llvm-project/blob/77533d79f79c6bbf9970234a9015714190218082/mlir/lib/Dialect/Math/Transforms/ExpandPatterns.cpp?q=DivFOp+repo%3Allvm%2Fllvm-project#L39
+        // here I get error: no matching function for call to ‘mlir::DivFOp::build(mlir::OpBuilder&, mlir::OperationState&, mlir::DivFOp&)’
+        // auto div = rewriter.create<arith::DivFOp>(loc, dividend, divisor);
+        // rewriter.replaceOpWithNewOp<arith::DivFOp>(op, div);
+        return success();
+    }
+
+};
 
 struct ReturnOpLowering : public OpRewritePattern<daphne::ReturnOp>
 {
@@ -950,7 +975,7 @@ void DaphneLowerToLLVMPass::runOnOperation()
             AbsOpLowering,
             /* Binary Ops */
             AddOpLowering, SubOpLowering, MulOpLowering, DivOpLowering,
-            PowOpLowering>(&getContext());
+            PowOpLowering/*, LogOpLowering*/>(&getContext());
     }
 
     patterns.insert<
