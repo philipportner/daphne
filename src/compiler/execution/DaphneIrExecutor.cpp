@@ -169,9 +169,9 @@ bool DaphneIrExecutor::runPasses(mlir::ModuleOp module)
         pm.addPass(mlir::createLowerToCFGPass());
 
         // if (userConfig_.lower_scalar_mlir) {
-        //     pm.addPass(mlir::daphne::createPrintIRPass("IR before scalar lowering"));
-        //     pm.addPass(mlir::daphne::createLowerScalarOpsPass(userConfig_));
-        //     pm.addPass(mlir::daphne::createPrintIRPass("IR after scalar lowering"));
+            // pm.addPass(mlir::daphne::createPrintIRPass("IR before scalar lowering"));
+            // pm.addPass(mlir::daphne::createLowerScalarOpsPass(userConfig_));
+            // pm.addPass(mlir::daphne::createPrintIRPass("IR after scalar lowering"));
         // }
 
 
